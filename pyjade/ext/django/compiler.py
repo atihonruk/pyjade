@@ -1,6 +1,7 @@
 import logging
 import os
-
+from os.path import dirname, normpath, relpath, join
+ 
 from pyjade import Compiler as _Compiler, Parser, register_filter
 from pyjade.runtime import attrs
 from pyjade.exceptions import CurrentlyNotSupported
@@ -8,11 +9,14 @@ from pyjade.utils import process
 
 from django.conf import settings
 
+logger = logging.getLogger(__name__)
+
 class Compiler(_Compiler):
     autocloseCode = 'if,ifchanged,ifequal,ifnotequal,for,block,filter,autoescape,with,trans,blocktrans,spaceless,comment,cache,localize,compress,verbatim'.split(',')
     useRuntime = True
 
     def __init__(self, node, **options):
+        self.origin = options.get('origin', None)
         if settings.configured:
             options.update(getattr(settings,'PYJADE',{}))
         super(Compiler, self).__init__(node, **options)
@@ -57,6 +61,24 @@ class Compiler(_Compiler):
 
     def attributes(self,attrs):
         return "{%% __pyjade_attrs %s %%}"%attrs
+
+    def make_relative(self, path):
+        dirname_ = dirname(self.origin.name)
+        abspath_ = normpath(join(dirname_, path))
+        logger.debug('Abspath: ' + abspath_)
+        root = next(d for d in settings.TEMPLATE_DIRS if abspath_.startswith(d))
+        logger.debug('Root: ' + root)
+        relpath_ = relpath(abspath_, start=root)
+        logger.debug('Relpath: ' + relpath_ + '\n')
+        return relpath_
+
+    def visitExtends(self, node):
+        node.path = self.make_relative(node.path)
+        super(Compiler, self).visitExtends(node)
+
+    def visitInclude(self, node):
+        node.path = self.make_relative(node.path)
+        super(Compiler, self).visitInclude(node)
 
 
 from django import template

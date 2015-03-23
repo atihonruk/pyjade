@@ -61,8 +61,8 @@ class Loader(BaseLoader):
             if os.path.splitext(template_name)[1] in ('.jade',):
                 try:
                     source, display_name = self.load_template_source(template_name, template_dirs)
-                    source=process(source,filename=template_name,compiler=Compiler)
                     origin = make_origin(display_name, self.load_template_source, template_name, template_dirs)
+                    source=process(source,filename=template_name,compiler=Compiler,origin=origin)
                     template = get_template_from_string(source, origin, template_name)
                 except NotImplementedError:
                     template, origin = self.find_template(template_name, template_dirs)
